@@ -2,56 +2,49 @@ import type { Config } from 'tailwindcss'
 
 export default {
   content: [
-    "./app.vue",
-    "./components/**/*.{vue,js,ts}",
-    "./layouts/**/*.{vue,js,ts}",
-    "./pages/**/*.{vue,js,ts}",
-    "./plugins/**/*.{js,ts}",
-    "./composables/**/*.{js,ts}",
-    "./utils/**/*.{js,ts}",
-    "./App.{js,ts,vue}",
-    "./app.{js,ts,vue}",
-    "./Error.{js,ts,vue}",
-    "./error.{js,ts,vue}",
-    "./app.config.{js,ts}",
-  ],
-  safelist: [
-    'border-emerald-500/50',
-    'hover:border-emerald-400/60',
-    'border-yellow-500/50',
-    'hover:border-yellow-400/60',
-    'border-red-500/50',
-    'hover:border-red-400/60',
-    'border-gray-500/50',
-    'hover:border-gray-400/60',
-    'via-emerald-500/5',
-    'via-yellow-500/5',
-    'via-red-500/5',
-    'via-gray-500/5'
+    './app.vue',
+    './components/**/*.{vue,js,ts,tsx}',
+    './layouts/**/*.{vue,js,ts,tsx}',
+    './pages/**/*.{vue,js,ts,tsx}',
+    './plugins/**/*.{js,ts}',
+    './composables/**/*.{js,ts}',
+    './utils/**/*.{js,ts}',
+    './App.{js,ts,vue}',
+    './Error.{js,ts,vue}',
+    './app.config.{js,ts}'
   ],
   theme: {
     extend: {
-      colors: {
-        brand: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-        },
+      fontFamily: {
+        sans: ['Inter Tight', 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
       },
-      borderColor: {
-        DEFAULT: 'rgba(255, 255, 255, 0.1)',
+      colors: {
+        surface: '#050712',
+        'surface-elevated': '#0b0f20',
+        brand: {
+          50: '#f3e9ff',
+          100: '#e6d4ff',
+          200: '#cdb1ff',
+          300: '#b08bff',
+          400: '#956aff',
+          500: '#7854ff',
+          600: '#5a3ef7',
+          700: '#422bd5',
+          800: '#2d1fa4',
+          900: '#1f1576'
+        },
+        success: '#22e7a0',
+        warning: '#f5a524',
+        danger: '#f87171'
       },
       boxShadow: {
-        'brand': '0 4px 14px 0 rgba(14, 165, 233, 0.1)',
+        glow: '0 24px 70px -35px rgba(90, 62, 247, 0.55)'
       },
-    },
+      backgroundImage: {
+        'status-grid': 'radial-gradient(circle at 25% 15%, rgba(120, 84, 255, 0.22), transparent 60%), radial-gradient(circle at 80% 0%, rgba(66, 43, 213, 0.18), transparent 55%)'
+      }
+    }
   },
-  plugins: [],
+  plugins: []
 } satisfies Config

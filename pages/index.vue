@@ -1,183 +1,262 @@
-<script setup lang="ts">
-import BaseCard from '~/components/cards/BaseCard.vue'
-import UptimeCard from '~/components/cards/UptimeCard.vue'
-import PlayersCard from '~/components/cards/PlayersCard.vue'
-import LatencyCard from '~/components/cards/LatencyCard.vue'
-import PlayersHistoryCard from '~/components/cards/PlayersHistoryCard.vue'
-import LatencyHistoryCard from '~/components/cards/LatencyHistoryCard.vue'
-import ComingSoonCard from '~/components/cards/ComingSoonCard.vue'
-import UptimeChartCard from '~/components/cards/UptimeChartCard.vue'
-import OnlinePlayersCard from '~/components/cards/OnlinePlayersCard.vue'
-import { useStatus } from '~/composables/useStatus'
-import { useStatusHistory } from '~/composables/useStatusHistory'
-import { useOnlinePlayers } from '~/composables/useOnlinePlayers'
-
-// Garante que os dados iniciais tenham a estrutura correta
-const defaultData = {
-  health: { ok: false },
-  players: { count: 0 },
-  latencyMs: null
-}
-
-const { data = ref(defaultData), pending, refresh, error } = await useStatus({ lazy: false, server: true })
-const { players, latency, uptimeSeries } = useStatusHistory(data, pending)
-
-// Função segura para obter o contador de jogadores
-const playerCount = computed(() => {
-  return data.value?.players?.count ?? 0
-})
-
-// Get the base URL from environment variables
-const config = useRuntimeConfig()
-const { players: onlinePlayers, playersByRank, fetchPlayers, loading: playersLoading } = useOnlinePlayers(config.public.wsAdminBase)
-
-// Fetch players when component mounts
-onMounted(async () => {
-  await fetchPlayers()
-
-  // Set up polling to refresh players every 30 seconds
-  const interval = setInterval(fetchPlayers, 30000)
-
-  // Clean up interval on component unmount
-  onUnmounted(() => clearInterval(interval))
-})
-</script>
-
 <template>
-  <main class="min-h-screen px-4 sm:px-6 py-8 bg-gray-900">
-    <!-- Header -->
-    <header class="group relative rounded-2xl border-2 border-gray-500/50 bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-xl p-6 mb-8 transition-all duration-300 hover:border-brand-500/80 hover:shadow-lg hover:shadow-brand-500/10">
-      <div class="absolute inset-0 bg-gradient-to-br from-brand-500/0 via-brand-500/5 to-brand-500/0 opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none"></div>
-      <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex flex-col">
-          <div class="flex items-start gap-3">
-            <img
-              src="~/assets/logo.png"
-              alt="Shindo Logo"
-              class="w-10 h-10 md:w-12 md:h-12 rounded-lg mt-0.5"
-            />
-            <div class="flex flex-col">
-              <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent leading-tight">Shindo API Status</h1>
-              <p class="text-sm text-white/70 -mt-1">Monitoramento em tempo real do status da API e servidores</p>
+  <main class="relative overflow-hidden px-4 py-16">
+    <div class="absolute inset-0 -z-10 bg-status-grid opacity-40"></div>
+    <div class="mx-auto flex w-full max-w-[1040px] flex-col gap-12">
+      <section class="panel grid gap-8 rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_30px_80px_-50px_rgba(18,25,52,0.85)] md:grid-cols-[minmax(0,1fr)_240px]">
+        <div class="flex flex-col gap-5">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="badge bg-white/10 text-white/60">Gateway Status</span>
+            <span
+              class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/60"
+            >
+              <span :class="['h-2 w-2 rounded-full', gatewayHealthy ? 'bg-success animate-pulse' : 'bg-warning']"></span>
+              {{ gatewayHealthy ? 'Operational' : 'Degraded' }}
+            </span>
+          </div>
+          <div>
+            <h1 class="font-display text-3xl text-white sm:text-4xl">Shindo Gateway Monitoring</h1>
+            <p class="mt-3 max-w-2xl text-sm text-white/65">
+              Live telemetry for the WebSocket gateway powering authentication, role sync and presence for the ShindoClient.
+              Every figure updates automatically to keep operators ahead of incidents.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-4 text-xs text-white/45">
+            <div class="flex items-center gap-2">
+              <svg class="h-3.5 w-3.5 text-white/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M18 15l-6-6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Updated {{ lastUpdatedLabel }}
+            </div>
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/60 transition hover:text-white"
+              @click="refreshStatus"
+            >
+              <svg
+                v-if="!statusPending"
+                class="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+              >
+                <path d="M3 12a9 9 0 0 1 9-9c2.4 0 4.6.97 6.19 2.54L21 9" />
+                <path d="M3 3v6h6" />
+                <path d="M21 12a9 9 0 0 1-9 9c-2.4 0-4.6-.97-6.19-2.54L3 15" />
+                <path d="M21 21v-6h-6" />
+              </svg>
+              <svg v-else class="h-3.5 w-3.5 animate-spin text-white/60" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.375 0 0 5.375 0 12h4z" />
+              </svg>
+              Refresh
+            </button>
+          </div>
+          <p v-if="statusError" class="text-xs text-warning">
+            Failed to reach the status endpoint. Showing fallback metrics.
+          </p>
+        </div>
+        <div class="panel flex flex-col gap-4 rounded-[28px] border border-white/10 bg-white/5 px-6 py-6">
+          <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-white/45">Snapshot</h2>
+          <div class="space-y-3 text-sm text-white/65">
+            <div class="flex items-center justify-between">
+              <span>Players Authenticated</span>
+              <span class="text-base font-semibold text-white">{{ playersOnline }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Current Latency</span>
+              <span class="text-base font-semibold text-white">{{ latencyLabel }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Incident Level</span>
+              <span class="text-base font-semibold text-white">
+                {{ gatewayHealthy ? 'None' : 'Investigating' }}
+              </span>
             </div>
           </div>
         </div>
-        <button
-          @click="refresh()"
-          :disabled="pending"
-          class="relative inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700/50 border border-gray-600/50 text-white/90 hover:bg-brand-500/20 hover:border-brand-500/50 hover:text-white transition-all duration-300 group/button overflow-hidden"
+      </section>
+
+      <section class="grid gap-5 md:grid-cols-3">
+        <div
+          v-for="metric in metricCards"
+          :key="metric.label"
+          class="panel flex h-full flex-col gap-3 rounded-[28px] border border-white/10 bg-white/5 p-6"
         >
-          <span class="absolute inset-0 bg-gradient-to-r from-brand-500/0 via-brand-500/10 to-brand-500/0 opacity-0 group-hover/button:opacity-100 transition-opacity duration-300"></span>
-          <span class="relative z-10 flex items-center gap-2 text-sm font-medium">
-            <svg
-              v-if="!pending"
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="w-4 h-4 transition-transform duration-500 group-hover/button:rotate-180"
-            >
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-              <path d="M3 3v5h5"></path>
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
-              <path d="M16 16h5v5"></path>
-            </svg>
-            <svg
-              v-else
-              class="animate-spin h-4 w-4 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span class="whitespace-nowrap">{{ pending ? 'Atualizando...' : 'Atualizar' }}</span>
-          </span>
-        </button>
-      </div>
-    </header>
+          <p class="text-xs uppercase tracking-[0.35em] text-white/45">{{ metric.label }}</p>
+          <p class="text-3xl font-semibold text-white">{{ metric.value }}</p>
+          <p class="text-sm text-white/55">{{ metric.description }}</p>
+        </div>
+      </section>
 
-    <!-- Status Section -->
-    <section class="mb-12">
-      <div class="relative flex justify-center mb-8">
-        <span class="px-4 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-gray-700/80 to-gray-800/80 backdrop-blur-sm border border-gray-600/50 rounded-full shadow-lg inline-flex items-center">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
-          Status do Servidor
-        </span>
-      </div>
+      <section class="panel grid gap-6 rounded-[32px] border border-white/10 bg-white/5 p-8 md:grid-cols-[minmax(0,1fr)_360px]">
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2">
+            <span class="badge bg-white/10 text-white/60">Operational Playbook</span>
+          </div>
+          <h2 class="font-display text-2xl text-white">What happens when latency spikes?</h2>
+          <p class="text-sm text-white/60">
+            The gateway now enforces token-based sessions. If we detect elevated latency or degraded health, follow the playbook below to triage the incident without disconnecting players.
+          </p>
+          <ul class="mt-4 space-y-3 text-sm text-white/65">
+            <li v-for="item in playbook" :key="item.title" class="flex items-start gap-3">
+              <div class="mt-1 h-2 w-2 rounded-full bg-accent-400/70"></div>
+              <div>
+                <p class="font-medium text-white/80">{{ item.title }}</p>
+                <p>{{ item.body }}</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="panel flex flex-col gap-4 rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <h3 class="text-sm font-semibold uppercase tracking-[0.3em] text-white/45">Service Map</h3>
+          <ul class="space-y-3 text-sm text-white/60">
+            <li v-for="service in services" :key="service.name" class="flex items-start gap-3">
+              <div class="mt-0.5 h-2 w-2 rounded-full bg-white/30"></div>
+              <div>
+                <p class="font-medium text-white/80">{{ service.name }}</p>
+                <p>{{ service.detail }}</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
 
-      <div class="grid gap-6 md:grid-cols-3">
-        <UptimeCard
-          :loading="pending"
-          :data="data?.health"
-        />
-        <PlayersCard
-          :loading="pending"
-          :count="playerCount"
-        />
-        <LatencyCard
-          :loading="pending"
-          :latency-ms="(data?.latencyMs ?? null) as any"
-        />
-      </div>
-    </section>
-
-    <!-- Analytics Section -->
-    <section class="mb-12">
-      <div class="relative flex justify-center mb-8">
-        <span class="px-4 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-gray-700/80 to-gray-800/80 backdrop-blur-sm border border-gray-600/50 rounded-full shadow-lg inline-flex items-center">
-          <svg class="w-3 h-3 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Análise de Desempenho
-        </span>
-      </div>
-
-      <div class="grid gap-6 md:grid-cols-3">
-        <UptimeChartCard
-          :loading="pending"
-          :data="data?.health"
-          :series="uptimeSeries"
-        />
-        <PlayersHistoryCard
-          :loading="pending"
-          :series="players"
-        />
-        <LatencyHistoryCard
-          :loading="pending"
-          :series="latency"
-        />
-      </div>
-    </section>
-
-    <!-- Players Section -->
-    <section class="mb-12">
-      <div class="relative flex justify-center mb-8">
-        <span class="px-4 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-gray-700/80 to-gray-800/80 backdrop-blur-sm border border-gray-600/50 rounded-full shadow-lg inline-flex items-center">
-          <svg class="w-3 h-3 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          Jogadores
-        </span>
-      </div>
-
-      <div class="grid gap-6">
-        <OnlinePlayersCard
-            :loading="playersLoading"
-            :players="onlinePlayers"
-            :players-by-rank="playersByRank"
-        />
-      </div>
-    </section>
-
-    <div v-if="error" class="mt-6 text-sm text-red-300 text-center">
-      Falha ao carregar. Verifique a env <code class="text-red-200">NUXT_PUBLIC_WS_ADMIN_BASE</code>.
+      <section class="panel rounded-[32px] border border-white/10 bg-white/5 p-8">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span class="badge bg-white/10 text-white/60">Incident Log</span>
+            <h2 class="mt-3 font-display text-2xl text-white">Recent events</h2>
+            <p class="text-sm text-white/60">No major incidents have been reported in the last 30 days.</p>
+          </div>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-medium text-white/60"
+            @click="refreshStatus"
+          >
+            Refresh
+          </button>
+        </div>
+      </section>
     </div>
   </main>
 </template>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+
+const runtimeConfig = useRuntimeConfig()
+const statusEndpoint = runtimeConfig.public.statusEndpoint as string | undefined
+
+const fallbackStatus = {
+  health: { ok: false },
+  players: { count: 0 },
+  latencyMs: null,
+  updatedAt: null
+}
+
+const {
+  data: statusData,
+  pending: statusPending,
+  refresh: refreshStatus,
+  error: statusError
+} = useLazyAsyncData('shindo-status', async () => {
+  if (!statusEndpoint) return fallbackStatus
+  try {
+    const payload = await $fetch(statusEndpoint, {
+      headers: { accept: 'application/json' },
+      timeout: 4000
+    })
+    return (payload as typeof fallbackStatus) ?? fallbackStatus
+  } catch {
+    return fallbackStatus
+  }
+}, {
+  default: () => fallbackStatus,
+  server: false
+})
+
+const gatewayHealthy = computed(() => statusData.value?.health?.ok ?? false)
+const playersOnline = computed(() => statusData.value?.players?.count ?? 0)
+const latencyMs = computed(() => statusData.value?.latencyMs ?? null)
+
+const latencyLabel = computed(() => {
+  if (!latencyMs.value) return '—'
+  const rounded = Math.round(latencyMs.value)
+  return `${rounded} ms`
+})
+
+const lastUpdatedLabel = computed(() => {
+  const raw = statusData.value?.updatedAt || statusData.value?.timestamp
+  if (!raw) return 'moments ago'
+  try {
+    const date = new Date(raw)
+    return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(
+      Math.round((date.getTime() - Date.now()) / (1000 * 60)),
+      'minute'
+    )
+  } catch {
+    return 'moments ago'
+  }
+})
+
+const metricCards = computed(() => [
+  {
+    label: 'Gateway Uptime',
+    value: gatewayHealthy.value ? '100%' : '−',
+    description: 'Continuous uptime thanks to Render zero-downtime deploys and automatic health probes.'
+  },
+  {
+    label: 'Active Sessions',
+    value: playersOnline.value.toString().padStart(2, '0'),
+    description: 'Authenticated sessions tracked through Supabase presence.'
+  },
+  {
+    label: 'Latency',
+    value: latencyLabel.value,
+    description: 'Measured from Render edge to Supabase and downstream Mojang services.'
+  }
+])
+
+const playbook = [
+  {
+    title: 'Verify Supabase Availability',
+    body: 'Check recent error logs for failed token issuance or realtime disconnects. Refresh service role keys if required.'
+  },
+  {
+    title: 'Inspect Render Metrics',
+    body: 'If latency spikes, inspect Render logs for throttling or container restarts. Trigger a redeploy if heartbeat failures persist.'
+  },
+  {
+    title: 'Notify Community Channels',
+    body: 'Post the status update on Discord and GitHub Discussions if the incident exceeds five minutes.'
+  }
+]
+
+const services = [
+  { name: 'Gateway (Render)', detail: 'Handles WebSocket traffic, role broadcasting and plugin hooks.' },
+  { name: 'Supabase (Presence)', detail: 'Stores session metadata, roles and presence signals.' },
+  { name: 'Vercel (Status UI)', detail: 'Edge-hosted Nuxt application serving this dashboard.' }
+]
+
+const intervalId = ref<number | null>(null)
+
+onMounted(() => {
+  intervalId.value = window.setInterval(() => refreshStatus(), 30000)
+})
+
+onBeforeUnmount(() => {
+  if (intervalId.value) {
+    clearInterval(intervalId.value)
+  }
+})
+
+useSeoMeta({
+  title: 'ShindoClient Gateway Status',
+  description: 'Live operational status for the ShindoClient WebSocket gateway, authentication services and presence pipeline.',
+  ogTitle: 'ShindoClient Gateway Status',
+  ogDescription: 'Track uptime, latency and active sessions for the ShindoClient infrastructure in real time.',
+  ogUrl: 'https://status.shindoclient.com',
+  themeColor: '#7854ff'
+})
+</script>

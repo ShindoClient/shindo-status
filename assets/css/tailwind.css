@@ -2,66 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .card {
-    @apply h-full rounded-2xl border border-gray-700/50 bg-gradient-to-br from-gray-800/90 to-gray-900/90 
-           backdrop-blur-xl shadow-lg transition-all duration-300 hover:border-brand-500/50 
-           hover:shadow-xl hover:shadow-brand-500/10;
+@layer base {
+  :root {
+    color-scheme: dark;
   }
-  
-  .btn {
-    @apply relative overflow-hidden px-5 py-2.5 rounded-xl font-medium transition-all duration-300 
-           disabled:opacity-70 disabled:cursor-not-allowed;
+
+  body {
+    @apply min-h-screen bg-surface font-sans text-white antialiased;
+    background-image:
+      radial-gradient(circle at 10% -10%, rgba(120, 84, 255, 0.28), transparent 55%),
+      radial-gradient(circle at 90% 0%, rgba(66, 43, 213, 0.18), transparent 60%),
+      linear-gradient(180deg, rgba(9, 13, 34, 0.9) 0%, rgba(5, 7, 18, 1) 55%, rgba(5, 7, 18, 1) 100%);
+    background-attachment: fixed;
   }
-  
-  .btn-primary {
-    @apply bg-brand-600 hover:bg-brand-500 text-white shadow-lg hover:shadow-brand-500/30;
-  }
-  
-  .btn-hover-effect::after {
-    content: '';
-    @apply absolute inset-0 bg-gradient-to-r from-brand-400/30 to-transparent -translate-x-full 
-           transition-transform duration-700;
-  }
-  
-  .btn-hover-effect:hover::after {
-    @apply translate-x-0;
-  }
-  
-  .gradient-text {
-    @apply bg-gradient-to-r from-blue-400 via-blue-300 to-cyan-400 bg-clip-text text-transparent;
+
+  #__nuxt {
+    @apply min-h-screen;
   }
 }
 
-@layer base {
-  html, body, #__nuxt { 
-    @apply h-full;
+@layer components {
+  .panel {
+    @apply relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur-2xl;
   }
-  
-  body {
-    @apply bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 text-white;
+
+  .badge {
+    @apply inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs font-medium uppercase tracking-[0.35em] text-white/50;
   }
-  
-  /* Animações */
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  
-  .animate-spin {
-    animation: spin 1s linear infinite;
-  }
-  
-  /* Scrollbar personalizada */
-  ::-webkit-scrollbar {
-    @apply w-2 h-2;
-  }
-  
-  ::-webkit-scrollbar-track {
-    @apply bg-gray-900/50;
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gray-700 rounded-full hover:bg-gray-600;
+}
+
+@layer utilities {
+  .grid-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 0), linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 0);
+    background-size: 64px 64px;
+    opacity: 0.4;
+    pointer-events: none;
   }
 }

@@ -33,7 +33,7 @@ export default defineNuxtConfig({
     // Variáveis de ambiente
     runtimeConfig: {
         public: {
-            wsAdminBase: process.env.NUXT_PUBLIC_WS_ADMIN_BASE || '',
+            statusEndpoint: process.env.NUXT_PUBLIC_STATUS_ENDPOINT || ''
         }
     },
 
