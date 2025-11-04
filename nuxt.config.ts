@@ -39,7 +39,7 @@ export default defineNuxtConfig({
 
     // Configurações do servidor
     nitro: {
-        preset: 'vercel-edge',
+        preset: 'vercel',
         routeRules: {
             '/api/**': {
                 cors: true,
