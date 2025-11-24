@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
         Expires: '0',
     })
 
-    if (!base || !wsAdminKey) {
+    if (!base) {
         return {
             health: { ok: false, error: 'status endpoint not configured' },
             players: { count: 0 },
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    const adminHeaders = { 'x-admin-key': wsAdminKey }
+    const adminHeaders = wsAdminKey ? { 'x-admin-key': wsAdminKey } : undefined
     base = base.replace(/\/$/, '')
     // tenta health
     const h = await safeFetch(`${base}/v1/health`)
@@ -71,7 +71,8 @@ export default defineEventHandler(async (event) => {
             version: typeof d?.version === 'string' ? d.version : undefined,
             connections: typeof d?.connections === 'number' ? d.connections : undefined,
         }
-    } else {
+    } else if (adminHeaders) {
+        // fallback tenta pegar info básica via connected-users (requer header)
         const cu = await safeFetch(`${base}/v1/connected-users`, { headers: adminHeaders })
         latencyMs = cu.latency
         health = {
@@ -84,8 +85,11 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    const users = await safeFetch(`${base}/v1/connected-users`, { headers: adminHeaders })
-    const userList = users.ok && (users.data as any)?.users ? (users.data as any).users : []
+    let userList: any[] = []
+    if (adminHeaders) {
+        const users = await safeFetch(`${base}/v1/connected-users`, { headers: adminHeaders })
+        userList = users.ok && (users.data as any)?.users ? (users.data as any).users : []
+    }
     const count = Array.isArray(userList) ? Number(userList.length) : 0
 
     return { health, players: { count, list: userList }, latencyMs, timestamp: new Date().toISOString() }
