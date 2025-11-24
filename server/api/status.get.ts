@@ -1,7 +1,9 @@
 import { defineEventHandler, getMethod, setHeaders, setResponseStatus } from 'h3'
 import { useRuntimeConfig } from '#imports'
 
-async function safeFetch(url: string, init?: RequestInit) {
+type FetchResult = { ok: boolean; latency: number; data: any; status?: number; error?: string }
+
+async function safeFetch(url: string, init?: RequestInit): Promise<FetchResult> {
     const controller = new AbortController()
     const t0 = Date.now()
     const timeout = setTimeout(() => controller.abort(), 3500)
@@ -9,12 +11,17 @@ async function safeFetch(url: string, init?: RequestInit) {
         const res = await fetch(url, { ...init, signal: controller.signal, cache: 'no-store' } as any)
         clearTimeout(timeout)
         const latency = Date.now() - t0
-        if (!res.ok) return { ok: false, latency, data: null }
+        if (!res.ok) return { ok: false, latency, data: null, status: res.status }
         const data = await res.json().catch(() => ({}))
-        return { ok: true, latency, data }
-    } catch {
+        return { ok: true, latency, data, status: res.status }
+    } catch (err: any) {
         clearTimeout(timeout)
-        return { ok: false, latency: Date.now() - t0, data: null }
+        return {
+            ok: false,
+            latency: Date.now() - t0,
+            data: null,
+            error: err?.message || 'fetch_failed',
+        }
     }
 }
 
@@ -56,6 +63,8 @@ export default defineEventHandler(async (event) => {
         env: undefined as string | undefined,
         version: undefined as string | undefined,
         connections: undefined as number | undefined,
+        status: h.status,
+        error: h.error,
     }
     if (h.ok && h.data) {
         const d: any = h.data
@@ -70,6 +79,8 @@ export default defineEventHandler(async (event) => {
             env: typeof d?.env === 'string' ? d.env : undefined,
             version: typeof d?.version === 'string' ? d.version : undefined,
             connections: typeof d?.connections === 'number' ? d.connections : undefined,
+            status: h.status,
+            error: undefined,
         }
     } else if (adminHeaders) {
         // fallback tenta pegar info básica via connected-users (requer header)
@@ -82,6 +93,8 @@ export default defineEventHandler(async (event) => {
             env: undefined,
             version: undefined,
             connections: undefined,
+            status: cu.status,
+            error: cu.error,
         }
     }
 
