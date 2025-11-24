@@ -8,7 +8,19 @@ async function safeFetch(url: string, init?: RequestInit): Promise<FetchResult> 
     const t0 = Date.now()
     const timeout = setTimeout(() => controller.abort(), 3500)
     try {
-        const res = await fetch(url, { ...init, signal: controller.signal, cache: 'no-store' } as any)
+        const baseHeaders = {
+            accept: 'application/json',
+            'user-agent': 'shindo-status-probe/1.0 (+status)',
+        }
+        const res = await fetch(
+            url,
+            {
+                ...init,
+                headers: { ...baseHeaders, ...(init?.headers as any) },
+                signal: controller.signal,
+                cache: 'no-store',
+            } as any
+        )
         clearTimeout(timeout)
         const latency = Date.now() - t0
         if (!res.ok) return { ok: false, latency, data: null, status: res.status }
