@@ -1,6 +1,5 @@
 import { defineEventHandler, getMethod, setHeaders, setResponseStatus } from 'h3'
-
-const BASE = process.env.NUXT_PUBLIC_WS_ADMIN_BASE || ''
+import { useRuntimeConfig } from '#imports'
 
 async function safeFetch(url: string, init?: RequestInit) {
     const controller = new AbortController()
@@ -20,16 +19,11 @@ async function safeFetch(url: string, init?: RequestInit) {
 }
 
 export default defineEventHandler(async (event) => {
-    // CORS
-    const cors = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Max-Age': '86400',
-    }
+    const config = useRuntimeConfig(event)
+    const { wsAdminKey } = config as { wsAdminKey?: string }
+    let base = process.env.NUXT_PUBLIC_WS_ADMIN_BASE || ''
 
     if (getMethod(event) === 'OPTIONS') {
-        setHeaders(event, cors)
         setResponseStatus(event, 204)
         return null
     }
@@ -39,38 +33,60 @@ export default defineEventHandler(async (event) => {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
         Pragma: 'no-cache',
         Expires: '0',
-        ...cors,
     })
 
-    if (!BASE) {
+    if (!base || !wsAdminKey) {
         return {
-            health: { ok: false, error: 'NUXT_PUBLIC_WS_ADMIN_BASE not set' },
+            health: { ok: false, error: 'status endpoint not configured' },
             players: { count: 0 },
             latencyMs: null,
             timestamp: new Date().toISOString(),
         }
     }
 
-    const base = BASE.replace(/\/$/, '')
+    const adminHeaders = { 'x-admin-key': wsAdminKey }
+    base = base.replace(/\/$/, '')
     // tenta health
     const h = await safeFetch(`${base}/v1/health`)
     let latencyMs = h.latency
-    let health = { ok: false as boolean, startedAt: undefined as string | undefined, uptimeMs: undefined as number | undefined }
+    let health = {
+        ok: false as boolean,
+        startedAt: undefined as string | undefined,
+        uptimeMs: undefined as number | undefined,
+        env: undefined as string | undefined,
+        version: undefined as string | undefined,
+        connections: undefined as number | undefined,
+    }
     if (h.ok && h.data) {
         const d: any = h.data
+        let ok = h.ok
+        if (typeof d?.ok === 'boolean') ok = d.ok
+        else if (typeof d?.success === 'boolean') ok = d.success
+        else if (d === true) ok = true
         health = {
-            ok: d?.ok === true || d === true,
+            ok,
             startedAt: d?.startedAt || undefined,
             uptimeMs: typeof d?.uptimeMs === 'number' ? d.uptimeMs : undefined,
+            env: typeof d?.env === 'string' ? d.env : undefined,
+            version: typeof d?.version === 'string' ? d.version : undefined,
+            connections: typeof d?.connections === 'number' ? d.connections : undefined,
         }
     } else {
-        const cu = await safeFetch(`${base}/v1/connected-users`)
+        const cu = await safeFetch(`${base}/v1/connected-users`, { headers: adminHeaders })
         latencyMs = cu.latency
-        health = { ok: cu.ok, startedAt: undefined, uptimeMs: undefined }
+        health = {
+            ok: cu.ok,
+            startedAt: undefined,
+            uptimeMs: undefined,
+            env: undefined,
+            version: undefined,
+            connections: undefined,
+        }
     }
 
-    const users = await safeFetch(`${base}/v1/connected-users`)
-    const count = users.ok && (users.data as any)?.users ? Number((users.data as any).users.length) : 0
+    const users = await safeFetch(`${base}/v1/connected-users`, { headers: adminHeaders })
+    const userList = users.ok && (users.data as any)?.users ? (users.data as any).users : []
+    const count = Array.isArray(userList) ? Number(userList.length) : 0
 
-    return { health, players: { count }, latencyMs, timestamp: new Date().toISOString() }
+    return { health, players: { count, list: userList }, latencyMs, timestamp: new Date().toISOString() }
 })

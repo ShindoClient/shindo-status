@@ -14,14 +14,6 @@ export default defineNuxtConfig({
     css: ['~/assets/css/tailwind.css'],
     modules: ['@vueuse/motion/nuxt'],
 
-    // Configurações de roteamento
-    routeRules: {
-        '/api/**': {
-            cors: true,
-            headers: noCacheHeaders
-        }
-    },
-
     // Configurações de compilação
     postcss: {
         plugins: {
@@ -32,24 +24,16 @@ export default defineNuxtConfig({
 
     // Variáveis de ambiente
     runtimeConfig: {
+        wsAdminKey: process.env.WS_ADMIN_KEY || '',
         public: {
-            statusEndpoint: process.env.NUXT_PUBLIC_STATUS_ENDPOINT || ''
+            statusEndpoint: '/api/status',
+            wsAdminBase: process.env.NUXT_PUBLIC_WS_ADMIN_BASE || ''
         }
     },
 
     // Configurações do servidor
     nitro: {
         preset: 'vercel',
-        routeRules: {
-            '/api/**': {
-                cors: true,
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0',
-                }
-            }
-        }
     },
 
     // Configurações de renderização
@@ -61,7 +45,13 @@ export default defineNuxtConfig({
                 { 'http-equiv': 'Expires', content: '0' }
             ],
             link: [
-                { rel: 'icon', type: 'image/x-icon', href: '/logo.ico' }
+                { rel: 'icon', type: 'image/x-icon', href: '/logo.ico' },
+                { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+                { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+                {
+                    rel: 'stylesheet',
+                    href: 'https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&family=Outfit:wght@500;600;700&display=swap'
+                }
             ]
         }
     }

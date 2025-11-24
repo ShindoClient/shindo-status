@@ -1,141 +1,174 @@
 <template>
   <main class="relative overflow-hidden px-4 py-16">
-    <div class="absolute inset-0 -z-10 bg-status-grid opacity-40"></div>
-    <div class="mx-auto flex w-full max-w-[1040px] flex-col gap-12">
-      <section class="panel grid gap-8 rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_30px_80px_-50px_rgba(18,25,52,0.85)] md:grid-cols-[minmax(0,1fr)_240px]">
-        <div class="flex flex-col gap-5">
+    <div class="pointer-events-none absolute inset-0 -z-10">
+      <div class="absolute inset-0 bg-status-grid opacity-50"></div>
+      <div class="absolute left-10 top-4 h-64 w-64 rounded-full bg-brand-600/25 blur-3xl"></div>
+      <div class="absolute right-0 bottom-10 h-72 w-72 rounded-full bg-brand-400/15 blur-3xl"></div>
+    </div>
+
+    <div class="mx-auto flex w-full max-w-[1120px] flex-col gap-10">
+      <section class="panel grid gap-8 p-8 md:grid-cols-[minmax(0,1.15fr)_1fr] md:p-10">
+        <div class="flex flex-col gap-6">
           <div class="flex flex-wrap items-center gap-3">
-            <span class="badge bg-white/10 text-white/60">Gateway Status</span>
-            <span
-              class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/60"
-            >
-              <span :class="['h-2 w-2 rounded-full', gatewayHealthy ? 'bg-success animate-pulse' : 'bg-warning']"></span>
+            <span class="section-label">WebSocket Status</span>
+            <span class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/70">
+              <span :class="['h-2.5 w-2.5 rounded-full shadow-md shadow-brand-500/40', gatewayHealthy ? 'bg-success animate-pulse' : 'bg-warning']"></span>
               {{ gatewayHealthy ? 'Operational' : 'Degraded' }}
             </span>
+            <span class="text-xs text-white/45">Updated {{ lastUpdatedLabel }}</span>
           </div>
-          <div>
-            <h1 class="font-display text-3xl text-white sm:text-4xl">Shindo Gateway Monitoring</h1>
-            <p class="mt-3 max-w-2xl text-sm text-white/65">
-              Live telemetry for the WebSocket gateway powering authentication, role sync and presence for the ShindoClient.
-              Every figure updates automatically to keep operators ahead of incidents.
+
+          <div class="space-y-3">
+            <h1 class="font-display text-3xl leading-tight text-white sm:text-4xl">Shindo WebSocket Status</h1>
+            <p class="max-w-2xl text-sm text-white/70">
+              Watch the WebSocket that handles auth, presence and roles with live uptime, latency and active session counts.
             </p>
           </div>
-          <div class="flex flex-wrap items-center gap-4 text-xs text-white/45">
-            <div class="flex items-center gap-2">
-              <svg class="h-3.5 w-3.5 text-white/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path d="M18 15l-6-6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              Updated {{ lastUpdatedLabel }}
-            </div>
+
+          <div class="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/60 transition hover:text-white"
+              class="button-primary"
               @click="refreshStatus"
             >
               <svg
                 v-if="!statusPending"
-                class="h-3.5 w-3.5"
+                class="h-4 w-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1.6"
+                stroke-width="1.8"
               >
                 <path d="M3 12a9 9 0 0 1 9-9c2.4 0 4.6.97 6.19 2.54L21 9" />
                 <path d="M3 3v6h6" />
                 <path d="M21 12a9 9 0 0 1-9 9c-2.4 0-4.6-.97-6.19-2.54L3 15" />
                 <path d="M21 21v-6h-6" />
               </svg>
-              <svg v-else class="h-3.5 w-3.5 animate-spin text-white/60" viewBox="0 0 24 24" fill="none">
+              <svg v-else class="h-4 w-4 animate-spin text-white/80" viewBox="0 0 24 24" fill="none">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.375 0 0 5.375 0 12h4z" />
               </svg>
-              Refresh
+              Refresh now
             </button>
+            <span class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/70">
+              <span class="h-2 w-2 rounded-full bg-white/40"></span>
+              {{ gatewayHealthy ? 'Incident level: none' : 'Incident level: investigating' }}
+            </span>
           </div>
+
           <p v-if="statusError" class="text-xs text-warning">
             Failed to reach the status endpoint. Showing fallback metrics.
           </p>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="metric-tile">
+              <p class="text-xs uppercase tracking-[0.35em] text-white/55">Players online</p>
+              <p class="text-3xl font-semibold text-white">{{ playersOnline }}</p>
+              <p class="text-xs text-white/55">Authenticated sessions synced through the WebSocket.</p>
+            </div>
+            <div class="metric-tile">
+              <p class="text-xs uppercase tracking-[0.35em] text-white/55">Latency</p>
+              <p class="text-3xl font-semibold text-white">{{ latencyLabel }}</p>
+              <p class="text-xs text-white/55">Edge to WebSocket measurement in the health loop.</p>
+            </div>
+          </div>
         </div>
-        <div class="panel flex flex-col gap-4 rounded-[28px] border border-white/10 bg-white/5 px-6 py-6">
-          <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-white/45">Snapshot</h2>
-          <div class="space-y-3 text-sm text-white/65">
+
+        <div class="relative overflow-hidden rounded-[24px] border border-white/15 bg-gradient-to-br from-brand-700/40 via-brand-500/25 to-surface-elevated/80 p-6 shadow-[0_40px_100px_-45px_rgba(90,62,247,0.7)]">
+          <div class="absolute right-[-60px] top-[-80px] h-72 w-72 rounded-full bg-white/10 blur-3xl"></div>
+          <div class="absolute left-[-80px] bottom-[-60px] h-64 w-64 rounded-full bg-brand-500/20 blur-3xl"></div>
+          <div class="relative space-y-4">
             <div class="flex items-center justify-between">
-              <span>Players Authenticated</span>
-              <span class="text-base font-semibold text-white">{{ playersOnline }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span>Current Latency</span>
-              <span class="text-base font-semibold text-white">{{ latencyLabel }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span>Incident Level</span>
-              <span class="text-base font-semibold text-white">
-                {{ gatewayHealthy ? 'None' : 'Investigating' }}
+              <p class="text-xs uppercase tracking-[0.35em] text-white/65">Live snapshot</p>
+              <span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/70">
+                {{ gatewayHealthy ? 'Stable' : 'Needs attention' }}
               </span>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="grid gap-5 md:grid-cols-3">
-        <div
-          v-for="metric in metricCards"
-          :key="metric.label"
-          class="panel flex h-full flex-col gap-3 rounded-[28px] border border-white/10 bg-white/5 p-6"
-        >
-          <p class="text-xs uppercase tracking-[0.35em] text-white/45">{{ metric.label }}</p>
-          <p class="text-3xl font-semibold text-white">{{ metric.value }}</p>
-          <p class="text-sm text-white/55">{{ metric.description }}</p>
-        </div>
-      </section>
-
-      <section class="panel grid gap-6 rounded-[32px] border border-white/10 bg-white/5 p-8 md:grid-cols-[minmax(0,1fr)_360px]">
-        <div class="flex flex-col gap-4">
-          <div class="flex items-center gap-2">
-            <span class="badge bg-white/10 text-white/60">Operational Playbook</span>
-          </div>
-          <h2 class="font-display text-2xl text-white">What happens when latency spikes?</h2>
-          <p class="text-sm text-white/60">
-            The gateway now enforces token-based sessions. If we detect elevated latency or degraded health, follow the playbook below to triage the incident without disconnecting players.
-          </p>
-          <ul class="mt-4 space-y-3 text-sm text-white/65">
-            <li v-for="item in playbook" :key="item.title" class="flex items-start gap-3">
-              <div class="mt-1 h-2 w-2 rounded-full bg-accent-400/70"></div>
-              <div>
-                <p class="font-medium text-white/80">{{ item.title }}</p>
-                <p>{{ item.body }}</p>
+            <div class="rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-white/70">
+              <div class="flex items-center justify-between">
+                <span>Active Sessions</span>
+                <span class="text-base font-semibold text-white">{{ playersOnline }}</span>
               </div>
-            </li>
-          </ul>
-        </div>
-        <div class="panel flex flex-col gap-4 rounded-[28px] border border-white/10 bg-white/5 p-6">
-          <h3 class="text-sm font-semibold uppercase tracking-[0.3em] text-white/45">Service Map</h3>
-          <ul class="space-y-3 text-sm text-white/60">
-            <li v-for="service in services" :key="service.name" class="flex items-start gap-3">
-              <div class="mt-0.5 h-2 w-2 rounded-full bg-white/30"></div>
-              <div>
-                <p class="font-medium text-white/80">{{ service.name }}</p>
-                <p>{{ service.detail }}</p>
+              <div class="mt-3 flex items-center justify-between">
+                <span>Latency</span>
+                <span class="text-base font-semibold text-white">{{ latencyLabel }}</span>
               </div>
-            </li>
-          </ul>
+              <div class="mt-3 flex items-center justify-between">
+                <span>Health</span>
+                <span class="text-base font-semibold text-white">{{ gatewayHealthy ? 'Operational' : 'Degraded' }}</span>
+              </div>
+            </div>
+            <p class="text-xs text-white/60">Auto-refresh every 30s.</p>
+          </div>
         </div>
       </section>
 
-      <section class="panel rounded-[32px] border border-white/10 bg-white/5 p-8">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <span class="badge bg-white/10 text-white/60">Incident Log</span>
-            <h2 class="mt-3 font-display text-2xl text-white">Recent events</h2>
-            <p class="text-sm text-white/60">No major incidents have been reported in the last 30 days.</p>
+      <section class="panel space-y-6 p-6 md:p-8">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="space-y-1">
+            <span class="section-label">Live Telemetry</span>
+            <h2 class="font-display text-2xl text-white">WebSocket vitals</h2>
           </div>
-          <button
-            type="button"
-            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-medium text-white/60"
-            @click="refreshStatus"
+          <button class="button-ghost" @click="refreshStatus">Force refresh</button>
+        </div>
+        <div class="grid gap-4 md:grid-cols-3">
+          <div
+            v-for="metric in metricCards"
+            :key="metric.label"
+            class="metric-tile h-full"
           >
-            Refresh
-          </button>
+            <p class="text-xs uppercase tracking-[0.35em] text-white/55">{{ metric.label }}</p>
+            <p class="text-3xl font-semibold text-white">{{ metric.value }}</p>
+            <p class="text-sm text-white/60">{{ metric.description }}</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel space-y-6 p-6 md:p-8">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="space-y-1">
+            <span class="section-label">Players Online</span>
+            <h2 class="font-display text-2xl text-white">Who is online</h2>
+          </div>
+          <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/70">
+            {{ playersOnline }} active
+          </span>
+        </div>
+
+        <div v-if="onlinePlayers.length === 0" class="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/60">
+          No players online right now.
+        </div>
+
+        <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            v-for="player in onlinePlayers"
+            :key="player.uuid"
+            class="metric-tile flex items-center gap-3 p-4"
+          >
+            <img
+              :src="getPlayerHead(player.uuid)"
+              :alt="player.name"
+              class="h-12 w-12 rounded-lg border-2 border-white/15"
+              loading="lazy"
+            />
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-white truncate">{{ player.name }}</p>
+              <p class="text-xs text-white/60">
+                {{ player.roles || 'Member' }} | {{ getAccountTypeLabel(player.accountType) }}
+              </p>
+            </div>
+            <span
+              class="rounded-full border border-white/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]"
+              :class="{
+                'text-red-200 border-red-400/40 bg-red-400/10': player.roles?.toLowerCase().includes('staff'),
+                'text-blue-200 border-blue-400/40 bg-blue-400/10': player.roles?.toLowerCase().includes('diamond') || player.roles?.toLowerCase().includes('mvp'),
+                'text-yellow-200 border-yellow-400/40 bg-yellow-400/10': player.roles?.toLowerCase().includes('gold'),
+                'text-white/70 bg-white/5': true
+              }"
+            >
+              {{ (player.roles || 'Member') }}
+            </span>
+          </div>
         </div>
       </section>
     </div>
@@ -150,7 +183,7 @@ const statusEndpoint = runtimeConfig.public.statusEndpoint as string | undefined
 
 const fallbackStatus = {
   health: { ok: false },
-  players: { count: 0 },
+  players: { count: 0, list: [] as any[] },
   latencyMs: null,
   updatedAt: null
 }
@@ -179,11 +212,24 @@ const {
 const gatewayHealthy = computed(() => statusData.value?.health?.ok ?? false)
 const playersOnline = computed(() => statusData.value?.players?.count ?? 0)
 const latencyMs = computed(() => statusData.value?.latencyMs ?? null)
+const uptimeMs = computed(() => statusData.value?.health?.uptimeMs ?? null)
+const onlinePlayers = computed(() => statusData.value?.players?.list ?? [])
 
 const latencyLabel = computed(() => {
-  if (!latencyMs.value) return '—'
+  if (latencyMs.value == null) return '--'
   const rounded = Math.round(latencyMs.value)
   return `${rounded} ms`
+})
+
+const uptimeLabel = computed(() => {
+  if (uptimeMs.value == null) return '--'
+  const totalSeconds = Math.max(0, Math.floor(uptimeMs.value / 1000))
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes}m`
 })
 
 const lastUpdatedLabel = computed(() => {
@@ -202,42 +248,29 @@ const lastUpdatedLabel = computed(() => {
 
 const metricCards = computed(() => [
   {
-    label: 'Gateway Uptime',
-    value: gatewayHealthy.value ? '100%' : '−',
-    description: 'Continuous uptime thanks to Render zero-downtime deploys and automatic health probes.'
+    label: 'WebSocket Uptime',
+    value: uptimeLabel.value,
+    description: 'Uptime reported by the gateway healthcheck.'
   },
   {
     label: 'Active Sessions',
     value: playersOnline.value.toString().padStart(2, '0'),
-    description: 'Authenticated sessions tracked through Supabase presence.'
+    description: 'Authenticated sessions tracked in presence.'
   },
   {
     label: 'Latency',
     value: latencyLabel.value,
-    description: 'Measured from Render edge to Supabase and downstream Mojang services.'
+    description: 'Edge to WebSocket and downstream services.'
   }
 ])
 
-const playbook = [
-  {
-    title: 'Verify Supabase Availability',
-    body: 'Check recent error logs for failed token issuance or realtime disconnects. Refresh service role keys if required.'
-  },
-  {
-    title: 'Inspect Render Metrics',
-    body: 'If latency spikes, inspect Render logs for throttling or container restarts. Trigger a redeploy if heartbeat failures persist.'
-  },
-  {
-    title: 'Notify Community Channels',
-    body: 'Post the status update on Discord and GitHub Discussions if the incident exceeds five minutes.'
-  }
-]
+const getAccountTypeLabel = (type: string) => {
+  return type === 'MICROSOFT' ? 'Microsoft' : 'Offline'
+}
 
-const services = [
-  { name: 'Gateway (Render)', detail: 'Handles WebSocket traffic, role broadcasting and plugin hooks.' },
-  { name: 'Supabase (Presence)', detail: 'Stores session metadata, roles and presence signals.' },
-  { name: 'Vercel (Status UI)', detail: 'Edge-hosted Nuxt application serving this dashboard.' }
-]
+const getPlayerHead = (username: string) => {
+  return `https://crafatar.com/avatars/${username}?size=48&overlay&default=steve`
+}
 
 const intervalId = ref<number | null>(null)
 
@@ -252,9 +285,9 @@ onBeforeUnmount(() => {
 })
 
 useSeoMeta({
-  title: 'ShindoClient Gateway Status',
+  title: 'ShindoClient WebSocket Status',
   description: 'Live operational status for the ShindoClient WebSocket gateway, authentication services and presence pipeline.',
-  ogTitle: 'ShindoClient Gateway Status',
+  ogTitle: 'ShindoClient WebSocket Status',
   ogDescription: 'Track uptime, latency and active sessions for the ShindoClient infrastructure in real time.',
   ogUrl: 'https://status.shindoclient.com',
   themeColor: '#7854ff'
