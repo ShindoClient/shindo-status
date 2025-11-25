@@ -24,7 +24,8 @@ async function safeFetch(url: string, init?: RequestInit): Promise<FetchResult> 
     try {
         const baseHeaders = {
             accept: 'application/json',
-            'user-agent': 'shindo-status-probe/1.0 (+status)',
+            // Algumas proteções rejeitam UAs "custom"; usamos um UA mais comum para evitar payload vazio
+            'user-agent': 'Mozilla/5.0 (compatible; ShindoStatus/1.0; +status.shindoclient.com)',
         }
         const res = await fetch(
             url,
@@ -38,7 +39,12 @@ async function safeFetch(url: string, init?: RequestInit): Promise<FetchResult> 
         clearTimeout(timeout)
         const latency = Date.now() - t0
         if (!res.ok) return { ok: false, latency, data: null, status: res.status }
-        const data = await res.json().catch(() => ({}))
+        let data: any = null
+        try {
+            data = await res.json()
+        } catch (err: any) {
+            return { ok: false, latency, data: null, status: res.status, error: 'invalid_json' }
+        }
         return { ok: true, latency, data, status: res.status }
     } catch (err: any) {
         clearTimeout(timeout)
@@ -109,6 +115,7 @@ export default defineEventHandler(async (event) => {
             status: h.status,
             error: h.error,
         }
+        
         if (h.ok && h.data && typeof h.data === 'object') {
             const d: any = h.data
             let ok = h.ok
@@ -141,6 +148,7 @@ export default defineEventHandler(async (event) => {
                 if (Array.isArray(payload.users)) userList = payload.users
                 else if (Array.isArray(payload.data)) userList = payload.data
                 else if (Array.isArray(payload)) userList = payload
+                else playersError = 'invalid_players_payload'
             } else if (!users.ok) {
                 playersError = `players_fetch_failed:${users.status || 'unknown'}`
             }
