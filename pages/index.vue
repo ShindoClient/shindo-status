@@ -166,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 
 const runtimeConfig = useRuntimeConfig()
 const statusEndpoint = runtimeConfig.public.statusEndpoint as string | undefined
@@ -227,7 +227,7 @@ const {
   pending: statusPending,
   refresh: refreshStatus,
   error: statusError
-} = useLazyAsyncData('shindo-status', async () => {
+} = useAsyncData('shindo-status', async () => {
   if (!statusEndpoint) return fallbackStatus
   try {
     const payload = await $fetch(statusEndpoint, {
@@ -240,7 +240,7 @@ const {
   }
 }, {
   default: () => fallbackStatus,
-  server: false
+  server: true
 })
 
 const gatewayHealthy = computed(() => statusData.value?.health?.ok ?? false)
@@ -362,9 +362,15 @@ const getRoleClass = (role: any) => {
 const intervalId = ref<number | null>(null)
 const hasFetched = ref(false)
 
+watchEffect(() => {
+  if (!statusPending.value) {
+    hasFetched.value = true
+  }
+})
+
 onMounted(() => {
-  // primeiro fetch acontece só no cliente para evitar mismatch de hidratação
-  refreshStatus().finally(() => { hasFetched.value = true })
+  // trigger a client refresh and keep polling
+  refreshStatus()
   intervalId.value = window.setInterval(() => refreshStatus(), 30000)
 })
 
