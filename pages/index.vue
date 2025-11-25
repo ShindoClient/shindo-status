@@ -59,19 +59,6 @@
           <p v-if="statusError" class="text-xs text-warning">
             Failed to reach the status endpoint. Showing fallback metrics.
           </p>
-
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div class="metric-tile">
-              <p class="text-xs uppercase tracking-[0.35em] text-white/55">Players online</p>
-              <p class="text-3xl font-semibold text-white">{{ playersOnline }}</p>
-              <p class="text-xs text-white/55">Authenticated sessions synced through the WebSocket.</p>
-            </div>
-            <div class="metric-tile">
-              <p class="text-xs uppercase tracking-[0.35em] text-white/55">Latency</p>
-              <p class="text-3xl font-semibold text-white">{{ latencyLabel }}</p>
-              <p class="text-xs text-white/55">Edge to WebSocket measurement in the health loop.</p>
-            </div>
-          </div>
         </div>
 
         <div class="relative overflow-hidden rounded-[24px] border border-white/15 bg-gradient-to-br from-brand-700/40 via-brand-500/25 to-surface-elevated/80 p-6 shadow-[0_40px_100px_-45px_rgba(90,62,247,0.7)]">
@@ -135,7 +122,11 @@
           </span>
         </div>
 
-        <div v-if="onlinePlayers.length === 0" class="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/60">
+        <div v-if="!hasFetched" class="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/60">
+          Loading players…
+        </div>
+
+        <div v-else-if="onlinePlayers.length === 0" class="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/60">
           No players online right now.
         </div>
 
@@ -146,27 +137,26 @@
             class="metric-tile flex items-center gap-3 p-4"
           >
             <img
-              :src="getPlayerHead(player.uuid)"
+              :src="getPlayerHead(player.uuid, player.accountType)"
               :alt="player.name"
               class="h-12 w-12 rounded-lg border-2 border-white/15"
               loading="lazy"
+              @error="onAvatarError"
             />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-semibold text-white truncate">{{ player.name }}</p>
               <p class="text-xs text-white/60">
                 {{ player.roles || 'Member' }} | {{ getAccountTypeLabel(player.accountType) }}
               </p>
+              <p class="text-[11px] text-white/45">
+                {{ formatLastSeen(player.lastSeen || player.connectedAt) }}
+              </p>
             </div>
             <span
               class="rounded-full border border-white/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]"
-              :class="{
-                'text-red-200 border-red-400/40 bg-red-400/10': player.roles?.toLowerCase().includes('staff'),
-                'text-blue-200 border-blue-400/40 bg-blue-400/10': player.roles?.toLowerCase().includes('diamond') || player.roles?.toLowerCase().includes('mvp'),
-                'text-yellow-200 border-yellow-400/40 bg-yellow-400/10': player.roles?.toLowerCase().includes('gold'),
-                'text-white/70 bg-white/5': true
-              }"
+              :class="getRoleClass(player.roles)"
             >
-              {{ (player.roles || 'Member') }}
+              {{ getRoleLabel(player.roles) }}
             </span>
           </div>
         </div>
@@ -188,6 +178,44 @@ const fallbackStatus = {
   updatedAt: null
 }
 
+const parseTimestamp = (value: any): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  const numeric = Number(value)
+  if (Number.isFinite(numeric)) return numeric
+  if (value == null) return null
+  const parsed = Date.parse(String(value))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const dedupePlayers = (list: any[]) => {
+  if (!Array.isArray(list)) return []
+  const byUuid = new Map<string, any>()
+  for (const raw of list) {
+    const uuid = typeof raw?.uuid === 'string' ? raw.uuid : null
+    if (!uuid) continue
+    const currentTs = parseTimestamp(raw?.lastSeen) ?? parseTimestamp(raw?.connectedAt)
+    const existing = byUuid.get(uuid)
+    const existingTs = existing ? (parseTimestamp(existing.lastSeen) ?? parseTimestamp(existing.connectedAt)) : null
+    if (!existing || (currentTs != null && (existingTs == null || currentTs > existingTs))) {
+      byUuid.set(uuid, raw)
+    }
+  }
+  return Array.from(byUuid.values())
+}
+
+const formatLastSeen = (value: any) => {
+  const ts = parseTimestamp(value)
+  if (ts == null) return 'Recently active'
+  const diff = Date.now() - ts
+  if (diff < 30_000) return 'Active now'
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 48) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
 const {
   data: statusData,
   pending: statusPending,
@@ -206,14 +234,27 @@ const {
   }
 }, {
   default: () => fallbackStatus,
-  server: false
+  server: false,
+  lazy: true
 })
 
 const gatewayHealthy = computed(() => statusData.value?.health?.ok ?? false)
-const playersOnline = computed(() => statusData.value?.players?.count ?? 0)
+const connections = computed(() => statusData.value?.health?.connections ?? null)
+
+const onlinePlayers = computed(() => dedupePlayers(statusData.value?.players?.list ?? []))
+
+const playersOnline = computed(() => {
+  const listCount = onlinePlayers.value.length
+  if (listCount > 0) return listCount
+  const playersCount = statusData.value?.players?.count
+  if (typeof playersCount === 'number') return playersCount
+  const uniqueUsers = statusData.value?.health?.uniqueUsers
+  if (typeof uniqueUsers === 'number') return uniqueUsers
+  if (typeof connections.value === 'number') return connections.value
+  return 0
+})
 const latencyMs = computed(() => statusData.value?.latencyMs ?? null)
 const uptimeMs = computed(() => statusData.value?.health?.uptimeMs ?? null)
-const onlinePlayers = computed(() => statusData.value?.players?.list ?? [])
 
 const latencyLabel = computed(() => {
   if (latencyMs.value == null) return '--'
@@ -253,9 +294,9 @@ const metricCards = computed(() => [
     description: 'Uptime reported by the gateway healthcheck.'
   },
   {
-    label: 'Active Sessions',
-    value: playersOnline.value.toString().padStart(2, '0'),
-    description: 'Authenticated sessions tracked in presence.'
+    label: 'Active Connections',
+    value: (playersOnline.value ?? connections.value ?? 0).toString().padStart(2, '0'),
+    description: 'Open WebSocket connections reported by the gateway.'
   },
   {
     label: 'Latency',
@@ -268,13 +309,54 @@ const getAccountTypeLabel = (type: string) => {
   return type === 'MICROSOFT' ? 'Microsoft' : 'Offline'
 }
 
-const getPlayerHead = (username: string) => {
-  return `https://crafatar.com/avatars/${username}?size=48&overlay&default=steve`
+const fallbackAvatar = 'https://crafatar.com/avatars/steve?size=48&overlay=steve&default=steve'
+
+const getPlayerHead = (username: string | undefined, accountType?: string) => {
+  // Offline accounts não têm skin na Mojang; força head default Steve
+  const isOffline = (accountType || '').toUpperCase() === 'OFFLINE'
+  if (!username || isOffline) return fallbackAvatar
+  return `https://crafatar.com/avatars/${username}?size=48&overlay=steve&default=steve`
+}
+
+const onAvatarError = (event: Event) => {
+  const target = event?.target as HTMLImageElement | null
+  if (!target) return
+  // evita loop infinito
+  if ((target.dataset || {}).fallbackApplied) return
+  target.src = fallbackAvatar
+  if (!target.dataset) target.dataset = {}
+  target.dataset.fallbackApplied = '1'
+}
+
+const normalizeRole = (role: any) => {
+  if (Array.isArray(role)) return role.join(',').trim() || 'Member'
+  if (typeof role === 'string') return role.trim() || 'Member'
+  if (role == null) return 'Member'
+  const coerced = String(role).trim()
+  return coerced || 'Member'
+}
+
+const getRoleLabel = (role: any) => {
+  const normalized = normalizeRole(role)
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+const getRoleClass = (role: any) => {
+  const normalized = normalizeRole(role).toLowerCase()
+  return {
+    'text-red-200 border-red-400/40 bg-red-400/10': normalized.includes('staff'),
+    'text-blue-200 border-blue-400/40 bg-blue-400/10': normalized.includes('diamond') || normalized.includes('mvp'),
+    'text-yellow-200 border-yellow-400/40 bg-yellow-400/10': normalized.includes('gold'),
+    'text-white/70 bg-white/5': true
+  }
 }
 
 const intervalId = ref<number | null>(null)
+const hasFetched = ref(false)
 
 onMounted(() => {
+  // primeiro fetch acontece só no cliente para evitar mismatch de hidratação
+  refreshStatus().finally(() => { hasFetched.value = true })
   intervalId.value = window.setInterval(() => refreshStatus(), 30000)
 })
 
