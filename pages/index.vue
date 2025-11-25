@@ -137,7 +137,7 @@
             class="metric-tile flex items-center gap-3 p-4"
           >
             <img
-              :src="getPlayerHead(player.uuid, player.accountType)"
+              :src="getPlayerHead(player.uuid || player.name, player.accountType)"
               :alt="player.name"
               class="h-12 w-12 rounded-lg border-2 border-white/15"
               loading="lazy"
@@ -146,7 +146,7 @@
             <div class="flex-1 min-w-0">
               <p class="text-sm font-semibold text-white truncate">{{ player.name }}</p>
               <p class="text-xs text-white/60">
-                {{ player.roles || 'Member' }} | {{ getAccountTypeLabel(player.accountType) }}
+                {{ getAccountTypeLabel(player.accountType) }}
               </p>
               <p class="text-[11px] text-white/45">
                 {{ formatLastSeen(player.lastSeen || player.connectedAt) }}
@@ -172,7 +172,13 @@ const runtimeConfig = useRuntimeConfig()
 const statusEndpoint = runtimeConfig.public.statusEndpoint as string | undefined
 
 const fallbackStatus = {
-  health: { ok: false },
+  health: {
+    ok: false,
+    connections: null as number | null,
+    onlineUsers: null as number | null,
+    uniqueUsers: null as number | null,
+    uptimeMs: null as number | null
+  },
   players: { count: 0, list: [] as any[] },
   latencyMs: null,
   updatedAt: null
@@ -234,8 +240,7 @@ const {
   }
 }, {
   default: () => fallbackStatus,
-  server: false,
-  lazy: true
+  server: false
 })
 
 const gatewayHealthy = computed(() => statusData.value?.health?.ok ?? false)
@@ -248,6 +253,8 @@ const playersOnline = computed(() => {
   if (listCount > 0) return listCount
   const playersCount = statusData.value?.players?.count
   if (typeof playersCount === 'number') return playersCount
+  const onlineUsers = statusData.value?.health?.onlineUsers
+  if (typeof onlineUsers === 'number') return onlineUsers
   const uniqueUsers = statusData.value?.health?.uniqueUsers
   if (typeof uniqueUsers === 'number') return uniqueUsers
   if (typeof connections.value === 'number') return connections.value
@@ -274,7 +281,7 @@ const uptimeLabel = computed(() => {
 })
 
 const lastUpdatedLabel = computed(() => {
-  const raw = statusData.value?.updatedAt || statusData.value?.timestamp
+  const raw = statusData.value?.updatedAt ?? (statusData.value as any)?.timestamp
   if (!raw) return 'moments ago'
   try {
     const date = new Date(raw)
@@ -306,26 +313,27 @@ const metricCards = computed(() => [
 ])
 
 const getAccountTypeLabel = (type: string) => {
-  return type === 'MICROSOFT' ? 'Microsoft' : 'Offline'
+  return type === 'MICROSOFT' ? 'Microsoft' : 'Cracked'
 }
 
-const fallbackAvatar = 'https://crafatar.com/avatars/steve?size=48&overlay=steve&default=steve'
+const fallbackAvatar = 'https://mc-heads.net/avatar/steve/48'
 
-const getPlayerHead = (username: string | undefined, accountType?: string) => {
-  // Offline accounts não têm skin na Mojang; força head default Steve
+const getPlayerHead = (uuidOrName: string | undefined, accountType?: string) => {
+  // Offline accounts don't have Mojang skins; use Steve head
   const isOffline = (accountType || '').toUpperCase() === 'OFFLINE'
-  if (!username || isOffline) return fallbackAvatar
-  return `https://crafatar.com/avatars/${username}?size=48&overlay=steve&default=steve`
+  if (!uuidOrName || isOffline) return fallbackAvatar
+  const identifier = encodeURIComponent(uuidOrName)
+  return `https://mc-heads.net/avatar/${identifier}/48`
 }
+
 
 const onAvatarError = (event: Event) => {
   const target = event?.target as HTMLImageElement | null
   if (!target) return
   // evita loop infinito
-  if ((target.dataset || {}).fallbackApplied) return
+  if (target.getAttribute('data-fallback-applied')) return
   target.src = fallbackAvatar
-  if (!target.dataset) target.dataset = {}
-  target.dataset.fallbackApplied = '1'
+  target.setAttribute('data-fallback-applied', '1')
 }
 
 const normalizeRole = (role: any) => {

@@ -39,7 +39,7 @@ const getRankColor = (rank: string) => {
 }
 
 const getAccountTypeLabel = (type: string) => {
-  return type === 'MICROSOFT' ? 'Microsoft' : 'Offline'
+  return type === 'MICROSOFT' ? 'Microsoft' : 'Cracked'
 }
 
 // Generate Minecraft avatar URL using Crafatar

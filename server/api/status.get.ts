@@ -105,6 +105,7 @@ export default defineEventHandler(async (event) => {
             version: undefined as string | undefined,
             connections: 0 as number | undefined,
             uniqueUsers: undefined as number | undefined,
+            onlineUsers: undefined as number | undefined,
             status: h.status,
             error: h.error,
         }
@@ -125,6 +126,7 @@ export default defineEventHandler(async (event) => {
                 version: typeof d?.version === 'string' ? d.version : undefined,
                 connections: connections ?? 0,
                 uniqueUsers: toNumberOrNull(d?.uniqueUsers) ?? undefined,
+                onlineUsers: toNumberOrNull(d?.onlineUsers) ?? undefined,
                 status: h.status,
                 error: undefined,
             }
@@ -162,11 +164,13 @@ export default defineEventHandler(async (event) => {
         // se não conseguir listar players, usa o número de conexões do health como fallback de contagem
         const count = Array.isArray(userList) && userList.length > 0
             ? Number(userList.length)
-            : typeof health.uniqueUsers === 'number'
-                ? Number(health.uniqueUsers)
-                : typeof health.connections === 'number'
-                    ? Number(health.connections)
-                    : 0
+            : typeof health.onlineUsers === 'number'
+                ? Number(health.onlineUsers)
+                : typeof health.uniqueUsers === 'number'
+                    ? Number(health.uniqueUsers)
+                    : typeof health.connections === 'number'
+                        ? Number(health.connections)
+                        : 0
 
         const timestamp = new Date().toISOString()
 
