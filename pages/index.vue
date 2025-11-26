@@ -130,34 +130,36 @@
           No players online right now.
         </div>
 
-        <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div
-            v-for="player in onlinePlayers"
-            :key="player.uuid"
-            class="metric-tile flex items-center gap-3 p-4"
-          >
-            <img
-              :src="getPlayerHead(player.uuid || player.name, player.accountType)"
-              :alt="player.name"
-              class="h-12 w-12 rounded-lg border-2 border-white/15"
-              loading="lazy"
-              @error="onAvatarError"
-            />
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-white truncate">{{ player.name }}</p>
-              <p class="text-xs text-white/60">
-                {{ getAccountTypeLabel(player.accountType) }}
-              </p>
-              <p class="text-[11px] text-white/45">
-                {{ formatLastSeen(player.lastSeen || player.connectedAt) }}
-              </p>
-            </div>
-            <span
-              class="rounded-full border border-white/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]"
-              :class="getRoleClass(player.roles)"
+        <div v-else >
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              v-for="player in onlinePlayers"
+              :key="player.uuid"
+              class="metric-tile flex items-center gap-5 p-6"
             >
-              {{ getRoleLabel(player.roles) }}
-            </span>
+              <img
+                :src="getPlayerHead(player.uuid || player.name, player.accountType)"
+                :alt="player.name"
+                class="h-12 w-12 rounded-lg border-2 border-white/15"
+                loading="lazy"
+                @error="onAvatarError"
+              />
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-white truncate">{{ player.name }}</p>
+                <p class="text-xs text-white/60">
+                  {{ getAccountTypeLabel(player.accountType) }}
+                </p>
+                <p class="text-[11px] text-white/45">
+                  {{ formatLastSeen(player.lastSeen || player.connectedAt) }}
+                </p>
+              </div>
+              <span
+                class="rounded-full border border-white/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]"
+                :class="getRoleClass(player.roles)"
+              >
+                {{ getRoleLabel(player.roles) }}
+              </span>
+            </div>
           </div>
         </div>
       </section>
