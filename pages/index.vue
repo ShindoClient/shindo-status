@@ -179,7 +179,10 @@ const fallbackStatus = {
     uniqueUsers: null as number | null,
     uptimeMs: null as number | null
   },
-  players: { count: 0, list: [] as any[] },
+  players: { 
+    count: 0, 
+    list: [] as any[] 
+  },
   latencyMs: null,
   updatedAt: null
 }
