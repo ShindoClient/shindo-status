@@ -1,1 +1,1 @@
-# Shindo Client Status
+Shindo Status
