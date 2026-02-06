@@ -1,0 +1,40 @@
+// ============================================
+// OVERRIDES EXAMPLE - Exemplo de Overrides
+// ============================================
+// Este arquivo é apenas um exemplo. 
+// Copie este arquivo para seu projeto e renomeie para _overrides.scss
+// ou crie seu próprio arquivo de overrides.
+
+// Para usar overrides, você tem duas opções:
+
+// OPÇÃO 1: Sobrescrever variáveis CSS diretamente
+// Importe o main.scss normalmente e depois defina suas variáveis:
+// @use "shindo-styles/src/scss/main";
+// 
+// :root {
+//   --accent-500: 100 150 255; // Sobrescreve a cor accent-500
+//   --surface-card: 20 25 50;  // Sobrescreve a cor do card
+// }
+
+// OPÇÃO 2: Usar um arquivo de override separado
+// Crie um arquivo _my-overrides.scss no seu projeto:
+// 
+// :root {
+//   --accent-500: 100 150 255;
+//   --surface-card: 20 25 50;
+// }
+//
+// E então importe assim:
+// @use "my-overrides";
+// @use "shindo-styles/src/scss/main";
+
+// Exemplo de override completo da paleta (CDN):
+// :root {
+//   // Backgrounds customizados para CDN
+//   --bg: 22 27 41;
+//   --surface-card: 9 12 22;
+//   
+//   // Accent customizado
+//   --accent-500: 137 168 255;
+//   --accent-600: 100 140 255;
+// }

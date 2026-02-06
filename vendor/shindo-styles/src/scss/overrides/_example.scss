@@ -1,0 +1,57 @@
+// ============================================
+// EXEMPLO DE OVERRIDES
+// ============================================
+// Copie este arquivo para seu projeto e customize conforme necessário
+// 
+// Como usar:
+// 1. Copie este arquivo para seu projeto (ex: assets/scss/_overrides.scss)
+// 2. Defina as variáveis que deseja sobrescrever
+// 3. Importe antes do main.scss:
+//    @use "scss/overrides";
+//    @use "@shindo/styles/src/scss/main";
+
+:root {
+  // ============================================
+  // BACKGROUNDS
+  // ============================================
+  // Descomente e ajuste conforme necessário
+  
+  // --bg: 22 27 41;                    // Background principal customizado
+  // --surface-card: 9 12 22;           // Card mais escuro/claro
+  // --surface-panel: 12 16 38;          // Painel customizado
+  
+  // ============================================
+  // ACCENT COLORS
+  // ============================================
+  // Exemplo: CDN usa azul em vez de roxo
+  // --accent-500: 137 168 255;         // Azul customizado
+  // --accent-600: 100 140 255;          // Azul escuro
+  
+  // ============================================
+  // TEXT COLORS
+  // ============================================
+  // --text-opacity: 0.85;               // Texto mais opaco
+  // --text-muted: 200 210 230;          // Texto muted customizado
+  
+  // ============================================
+  // BORDERS & STROKES
+  // ============================================
+  // --border-opacity: 0.08;             // Bordas mais sutis
+  
+  // ============================================
+  // STATUS COLORS
+  // ============================================
+  // --success: 20 220 150;               // Verde de sucesso customizado
+  // --warning: 255 180 50;              // Amarelo de aviso customizado
+}
+
+// ============================================
+// EXEMPLO: Override completo para CDN
+// ============================================
+// :root {
+//   --bg: 22 27 41;
+//   --surface-card: 9 12 22;
+//   --accent-500: 137 168 255;
+//   --accent-600: 100 140 255;
+//   --border-opacity: 0.08;
+// }

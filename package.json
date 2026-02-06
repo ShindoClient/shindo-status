@@ -13,6 +13,7 @@
     "release": "nuxt build && vercel deploy --prebuilt --prod"
   },
   "dependencies": {
+    "@shindo/styles": "file:./vendor/shindo-styles",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "@vueuse/core": "^11.3.0",
@@ -33,6 +34,7 @@
     "@vue/compiler-sfc": "^3.5.21",
     "@vue/runtime-dom": "^3.5.21",
     "nitropack": "^2.12.6",
+    "sass": "^1.77.8",
     "typescript": "^5.9.2",
     "vue-tsc": "^3.0.7"
   }

@@ -11,7 +11,7 @@ export default defineNuxtConfig({
     future: { compatibilityVersion: 4 },
     devtools: { enabled: true },
     typescript: { strict: true },
-    css: ['~/assets/css/tailwind.css'],
+    css: ['~/assets/scss/main.scss'],
     modules: ['@vueuse/motion/nuxt'],
 
     // Configurações de compilação

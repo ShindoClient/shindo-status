@@ -1,0 +1,27 @@
+// ============================================
+// MAIN SCSS - Arquivo Principal
+// Sistema de Overrides Integrado
+// ============================================
+
+// IMPORTANTE: Para usar overrides em seus projetos:
+// 1. Crie um arquivo _overrides.scss no seu projeto
+// 2. Defina as variáveis CSS que deseja sobrescrever usando :root
+// 3. Importe seus overrides ANTES deste arquivo:
+//    @use "scss/overrides";  // Seu arquivo de override
+//    @use "@shindo/styles/src/scss/main";  // Esta biblioteca
+
+// 1. Palette (cores e variáveis) - precisa estar no escopo global
+// Se houver override de paleta, ele será aplicado antes
+@use "palette" as *;
+
+// 2. Base (reset e estilos base)
+@use "base" as *;
+
+// 3. Animações
+@use "animations" as *;
+
+// 4. Componentes
+@use "components/buttons" as *;
+@use "components/cards" as *;
+@use "components/labels" as *;
+@use "components/utilities" as *;

@@ -1,0 +1,123 @@
+// ============================================
+// CARDS - Glass Panel e Cards
+// Baseado no Website
+// ============================================
+
+.glass-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 65px -48px rgba(10, 18, 46, 0.9);
+  transition: border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top, rgba(var(--accent-500), 0.2), transparent 60%);
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(1.04);
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translate3d(0, -8px, 0) scale(1.01);
+    box-shadow: 0 40px 100px -50px rgba(var(--accent-600), 0.6);
+  }
+
+  &:hover::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  &--static:hover {
+    transform: none;
+    box-shadow: 0 24px 65px -48px rgba(10, 18, 46, 0.9);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  &--loose {
+    overflow: visible;
+  }
+}
+
+.feature-card {
+  min-height: auto;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(var(--accent-500), 0.3), transparent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &:hover {
+    transform: translate3d(0, -4px, 0) scale(1.01);
+    box-shadow: 0 20px 60px -30px rgba(var(--accent-600), 0.5);
+  }
+
+  &:hover::before {
+    transform: scaleX(1);
+  }
+}
+
+.roadmap-card {
+  min-height: auto;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(var(--accent-500), 0.3), transparent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &:hover {
+    transform: translate3d(0, -4px, 0) scale(1.01);
+    box-shadow: 0 20px 60px -30px rgba(var(--accent-600), 0.5);
+  }
+
+  &:hover::before {
+    transform: scaleX(1);
+  }
+}
+
+.support-card {
+  min-height: auto;
+
+  &:hover {
+    transform: translate3d(0, -3px, 0);
+    box-shadow: 0 20px 60px -30px rgba(var(--accent-600), 0.4);
+  }
+}

@@ -1,0 +1,75 @@
+// ============================================
+// PALETTE - Cores e Variáveis CSS
+// Baseado no Website
+// ============================================
+
+:root {
+  color-scheme: dark;
+  
+  // Backgrounds (baseado no website)
+  --bg: 5 6 17;
+  --surface: 5 6 17;
+  --surface-deep: 6 7 17;
+  --surface-panel: 15 18 43;
+  --surface-panel-2: 12 16 36;
+  --surface-panel-3: 12 15 38;
+  --surface-panel-4: 12 16 38;
+  --surface-card: 17 20 47;
+  --surface-muted: 11 15 32;
+  --surface-muted-2: 9 12 26;
+  --surface-elevated: 11 15 36;
+  --surface-soft: 15 17 40;
+  --surface-soft-2: 10 13 31;
+  --surface-soft-3: 10 14 36;
+  --surface-shadow: 9 12 30;
+  --surface-subtle: 15 20 44;
+  --surface-subtle-2: 15 21 48;
+  --surface-glow: 26 31 61;
+  
+  // Accent Colors (baseado no website)
+  --accent-50: 243 233 255;
+  --accent-100: 234 216 255;
+  --accent-200: 212 180 255;
+  --accent-300: 188 141 255;
+  --accent-400: 162 107 255;
+  --accent-500: 127 95 255;
+  --accent-600: 90 62 247;
+  --accent-700: 67 43 211;
+  --accent-800: 48 33 165;
+  --accent-900: 45 27 105;
+  
+  // Text Colors
+  --text-main: 255 255 255;
+  --text-muted: 182 190 218;
+  --text-soft: 146 154 186;
+  --text: 255 255 255;
+  --text-opacity: 0.78;
+  
+  // Stroke/Border
+  --stroke: 255 255 255;
+  --border-opacity: 0.1;
+  
+  // Status Colors
+  --success: 20 204 138;
+  --warning: 245 165 36;
+  
+  // Primary/Secondary (compatibilidade com website)
+  --primary: 127 95 255;
+  --primary-secondary: 90 62 247;
+  --secondary: 212 180 255;
+  
+  // Background Card/Dark
+  --bg-card: 11 15 36;
+  --bg-dark: 5 6 17;
+}
+
+// Override de paleta:
+// Para sobrescrever cores em seus projetos, defina as variáveis CSS
+// antes de importar este arquivo. Exemplo:
+//
+// :root {
+//   --accent-500: 137 168 255;
+// }
+// @use "@shindo/styles/src/scss/main";
+//
+// As variáveis definidas acima terão prioridade sobre os valores padrão.
