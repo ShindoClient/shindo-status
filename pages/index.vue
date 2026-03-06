@@ -16,6 +16,7 @@
               {{ gatewayHealthy ? 'Operational' : 'Degraded' }}
             </span>
             <span class="text-xs text-white/45">Updated {{ lastUpdatedLabel }}</span>
+            <span class="text-xs text-white/45" v-if="clientVersionLabel">Client {{ clientVersionLabel }}</span>
           </div>
 
           <div class="space-y-3">
@@ -172,6 +173,19 @@ import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 
 const runtimeConfig = useRuntimeConfig()
 const statusEndpoint = runtimeConfig.public.statusEndpoint as string | undefined
+
+const { data: clientVersionData } = await useAsyncData('client-version', () => $fetch('/api/client-version'), {
+  default: () => ({ build: null, semver: null, source: '' }),
+  server: true
+})
+
+const clientVersionLabel = computed(() => {
+  const semver = clientVersionData.value?.semver
+  const build = clientVersionData.value?.build
+  if (typeof semver === 'string' && semver.trim().length > 0) return semver
+  if (typeof build === 'number' && Number.isFinite(build) && build > 0) return `build ${build}`
+  return ''
+})
 
 const fallbackStatus = {
   health: {

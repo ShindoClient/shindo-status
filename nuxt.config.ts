@@ -1,6 +1,5 @@
 import { defineNuxtConfig } from 'nuxt/config'
 
-// Configurações de headers para evitar cache
 const noCacheHeaders = {
   'Cache-Control': 'no-cache, no-store, must-revalidate',
   'Pragma': 'no-cache',
@@ -13,36 +12,29 @@ export default defineNuxtConfig({
     typescript: { strict: true },
     css: ['~/assets/scss/main.scss'],
     modules: ['@vueuse/motion/nuxt'],
-
-    // Configurações de compilação
     postcss: {
         plugins: {
             tailwindcss: {},
             autoprefixer: {},
         },
     },
-
-    // Variáveis de ambiente
     runtimeConfig: {
         wsAdminKey: process.env.WS_ADMIN_KEY || '',
         public: {
             statusEndpoint: '/api/status',
-            wsAdminBase: process.env.NUXT_PUBLIC_WS_ADMIN_BASE || ''
+            wsAdminBase: process.env.NUXT_PUBLIC_WS_ADMIN_BASE || '',
+            versioningMetaUrl: process.env.NUXT_PUBLIC_VERSIONING_META_URL || 'https://cdn.shindoclient.com/data/meta/versioning.json'
         }
     },
-
-    // Configurações do servidor
     nitro: {
         preset: 'vercel',
     },
-
-    // Configurações de renderização
     app: {
         head: {
             meta: [
-                { 'http-equiv': 'Cache-Control', content: 'no-cache, no-store, must-revalidate' },
-                { 'http-equiv': 'Pragma', content: 'no-cache' },
-                { 'http-equiv': 'Expires', content: '0' }
+                { 'http-equiv': 'Cache-Control', content: noCacheHeaders['Cache-Control'] },
+                { 'http-equiv': 'Pragma', content: noCacheHeaders['Pragma'] },
+                { 'http-equiv': 'Expires', content: noCacheHeaders['Expires'] }
             ],
             link: [
                 { rel: 'icon', type: 'image/x-icon', href: '/logo.ico' },
