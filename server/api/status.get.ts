@@ -1,206 +1,314 @@
-import { defineEventHandler, getMethod, setHeaders, setResponseStatus } from 'h3'
-import { useRuntimeConfig } from '#imports'
+import {
+  defineEventHandler,
+  getMethod,
+  setHeaders,
+  setResponseStatus,
+} from "h3";
 
-type FetchResult = { ok: boolean; latency: number; data: any; status?: number; error?: string }
+type Json = Record<string, any>;
 
-const toNumberOrNull = (value: any): number | null => {
-    if (typeof value === 'number' && Number.isFinite(value)) return value
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
+type FetchResult = {
+  ok: boolean;
+  status?: number;
+  latency: number;
+  data: Json | any[] | null;
+  error?: string;
+};
+
+const REQUEST_TIMEOUT = 3500;
+
+function toNumber(value: any): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-const toTimestamp = (value: any): number | null => {
-    const numeric = toNumberOrNull(value)
-    if (numeric != null) return numeric
-    if (value == null) return null
-    const parsed = Date.parse(String(value))
-    return Number.isFinite(parsed) ? parsed : null
+function toTimestamp(value: any): number | undefined {
+  const numeric = toNumber(value);
+
+  if (numeric != null) {
+    return numeric;
+  }
+
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Date.parse(String(value));
+
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-async function safeFetch(url: string, init?: RequestInit): Promise<FetchResult> {
-    const controller = new AbortController()
-    const t0 = Date.now()
-    const timeout = setTimeout(() => controller.abort(), 3500)
-    try {
-        const baseHeaders = {
-            accept: 'application/json',
-            // Algumas proteções rejeitam UAs "custom"; usamos um UA mais comum para evitar payload vazio
-            'user-agent': 'Mozilla/5.0 (compatible; ShindoStatus/1.0; +status.shindoclient.com)',
-        }
-        const res = await fetch(
-            url,
-            {
-                ...init,
-                headers: { ...baseHeaders, ...(init?.headers as any) },
-                signal: controller.signal,
-                cache: 'no-store',
-            } as any
-        )
-        clearTimeout(timeout)
-        const latency = Date.now() - t0
-        if (!res.ok) return { ok: false, latency, data: null, status: res.status }
-        let data: any = null
-        try {
-            data = await res.json()
-        } catch (err: any) {
-            return { ok: false, latency, data: null, status: res.status, error: 'invalid_json' }
-        }
-        return { ok: true, latency, data, status: res.status }
-    } catch (err: any) {
-        clearTimeout(timeout)
-        return {
-            ok: false,
-            latency: Date.now() - t0,
-            data: null,
-            error: err?.message || 'fetch_failed',
-        }
+function calculateUptime(
+  uptimeMs?: number,
+  startedAt?: any,
+): number | undefined {
+  if (uptimeMs != null) {
+    return uptimeMs;
+  }
+
+  const startedAtTs = toTimestamp(startedAt);
+
+  if (startedAtTs == null) {
+    return undefined;
+  }
+
+  return Date.now() - startedAtTs;
+}
+
+async function safeFetch(
+  url: string,
+  init?: RequestInit,
+): Promise<FetchResult> {
+  const controller = new AbortController();
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, REQUEST_TIMEOUT);
+
+  const started = Date.now();
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+        "user-agent": "Mozilla/5.0 (compatible; ShindoStatus/1.0)",
+        ...(init?.headers || {}),
+      },
+    });
+
+    const latency = Date.now() - started;
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        latency,
+        data: null,
+      };
     }
+
+    let data: any = null;
+
+    try {
+      data = await response.json();
+    } catch {
+      return {
+        ok: false,
+        status: response.status,
+        latency,
+        data: null,
+        error: "invalid_json",
+      };
+    }
+
+    return {
+      ok: true,
+      status: response.status,
+      latency,
+      data,
+    };
+  } catch (error: any) {
+    clearTimeout(timeout);
+
+    return {
+      ok: false,
+      latency: Date.now() - started,
+      data: null,
+      error: error?.message || "fetch_failed",
+    };
+  }
+}
+
+function dedupeUsers(users: any[]): any[] {
+  const map = new Map<string, any>();
+
+  for (const user of users) {
+    const uuid = typeof user?.uuid === "string" ? user.uuid : undefined;
+
+    if (!uuid) {
+      continue;
+    }
+
+    const currentTimestamp =
+      toTimestamp(user?.lastSeen) ?? toTimestamp(user?.connectedAt) ?? 0;
+
+    const existing = map.get(uuid);
+
+    if (!existing) {
+      map.set(uuid, user);
+      continue;
+    }
+
+    const existingTimestamp =
+      toTimestamp(existing?.lastSeen) ??
+      toTimestamp(existing?.connectedAt) ??
+      0;
+
+    if (currentTimestamp > existingTimestamp) {
+      map.set(uuid, user);
+    }
+  }
+
+  return [...map.values()];
 }
 
 export default defineEventHandler(async (event) => {
-    const config = useRuntimeConfig(event)
-    const { wsAdminKey, public: publicConfig } = config as { wsAdminKey?: string; public?: { wsAdminBase?: string } }
+  if (getMethod(event) === "OPTIONS") {
+    setResponseStatus(event, 204);
+    return null;
+  }
 
-    // sempre tenta ler primeiro do runtimeConfig (funciona em dev e na Vercel), com fallback para process.env
-    let base = publicConfig?.wsAdminBase || process.env.NUXT_PUBLIC_WS_ADMIN_BASE || ''
-    base = (base || '').trim().replace(/\/$/, '')
+  setHeaders(event, {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
 
-    // tenta ler a admin key de diferentes variáveis para não falhar em ambientes que usam prefixos diferentes
-    const adminKey =
-        wsAdminKey ||
-        process.env.WS_ADMIN_KEY ||
-        process.env.NUXT_WS_ADMIN_KEY ||
-        process.env.NUXT_PRIVATE_WS_ADMIN_KEY ||
-        process.env.NUXT_PUBLIC_WS_ADMIN_KEY ||
-        ''
+  const base = (process.env.NUXT_PUBLIC_WS_ADMIN_BASE || "")
+    .trim()
+    .replace(/\/$/, "");
 
-    if (getMethod(event) === 'OPTIONS') {
-        setResponseStatus(event, 204)
-        return null
+  const adminKey =
+    process.env.WS_ADMIN_KEY ||
+    process.env.NUXT_WS_ADMIN_KEY ||
+    process.env.NUXT_PRIVATE_WS_ADMIN_KEY ||
+    process.env.NUXT_PUBLIC_WS_ADMIN_KEY ||
+    "";
+
+  if (!base || !/^https?:\/\//i.test(base)) {
+    return {
+      health: {
+        ok: false,
+        error: "status endpoint not configured",
+      },
+      players: {
+        count: 0,
+        list: [],
+      },
+      latencyMs: null,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  try {
+    const healthResponse = await safeFetch(`${base}/v1/health`);
+
+    const healthData: Json =
+      healthResponse.ok &&
+      healthResponse.data &&
+      !Array.isArray(healthResponse.data) &&
+      typeof healthResponse.data === "object"
+        ? healthResponse.data
+        : {};
+
+    const health = {
+      ok:
+        typeof healthData.ok === "boolean" ? healthData.ok : healthResponse.ok,
+
+      startedAt: healthData.startedAt || undefined,
+
+      uptimeMs: calculateUptime(
+        toNumber(healthData.uptimeMs),
+        healthData.startedAt,
+      ),
+
+      deployStartedAt: healthData.deployStartedAt || undefined,
+
+      deployUptimeMs: calculateUptime(
+        toNumber(healthData.deployUptimeMs),
+        healthData.deployStartedAt,
+      ),
+
+      env: typeof healthData.env === "string" ? healthData.env : undefined,
+
+      version:
+        typeof healthData.version === "string" ? healthData.version : undefined,
+
+      connections: toNumber(healthData.connections) ?? 0,
+
+      uniqueUsers: toNumber(healthData.uniqueUsers),
+
+      onlineUsers: toNumber(healthData.onlineUsers),
+
+      status: healthResponse.status,
+
+      error: healthResponse.ok ? undefined : healthResponse.error,
+    };
+
+    let users: any[] = [];
+    let playersError: string | undefined;
+
+    if (!adminKey) {
+      playersError = "missing_admin_key";
+    } else {
+      const usersResponse = await safeFetch(`${base}/v1/connected-users`, {
+        headers: {
+          "x-admin-key": adminKey,
+        },
+      });
+
+      if (usersResponse.ok) {
+        const payload = usersResponse.data;
+
+        if (Array.isArray(payload)) {
+          users = payload;
+        } else if (Array.isArray(payload?.users)) {
+          users = payload.users;
+        } else if (Array.isArray(payload?.data)) {
+          users = payload.data;
+        } else {
+          playersError = "invalid_players_payload";
+        }
+      } else {
+        playersError =
+          usersResponse.error ||
+          `players_fetch_failed:${usersResponse.status || "unknown"}`;
+      }
     }
 
-    setHeaders(event, {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        Pragma: 'no-cache',
-        Expires: '0',
-    })
+    users = dedupeUsers(users);
 
-    if (!base || !/^https?:\/\//i.test(base)) {
-        const timestamp = new Date().toISOString()
-        return {
-            health: { ok: false, error: 'status endpoint not configured' },
-            players: { count: 0 },
-            latencyMs: null,
-            timestamp,
-            updatedAt: timestamp,
-        }
-    }
+    const count =
+      users.length ||
+      health.onlineUsers ||
+      health.uniqueUsers ||
+      health.connections ||
+      0;
 
-    try {
-        const adminHeaders = adminKey ? { 'x-admin-key': adminKey } : undefined
-
-        // health NÃO precisa de header admin
-        const h = await safeFetch(`${base}/v1/health`)
-        let latencyMs = h.latency
-        let health = {
-            ok: false as boolean,
-            startedAt: undefined as string | undefined,
-            uptimeMs: undefined as number | undefined,
-            deployStartedAt: undefined as string | undefined,
-            deployUptimeMs: undefined as number | undefined,
-            env: undefined as string | undefined,
-            version: undefined as string | undefined,
-            connections: 0 as number | undefined,
-            uniqueUsers: undefined as number | undefined,
-            onlineUsers: undefined as number | undefined,
-            status: h.status,
-            error: h.error,
-        }
-        
-        if (h.ok && h.data && typeof h.data === 'object') {
-            const d: any = h.data
-            let ok = h.ok
-            if (typeof d?.ok === 'boolean') ok = d.ok
-            else if (typeof d?.success === 'boolean') ok = d.success
-            else if (d === true) ok = true
-
-            const connections = toNumberOrNull(d?.connections)
-
-            health = {
-                ok,
-                startedAt: d?.startedAt || undefined,
-                uptimeMs: toNumberOrNull(d?.uptimeMs) ?? undefined,
-                deployStartedAt: d?.deployStartedAt || undefined,
-                deployUptimeMs: toNumberOrNull(d?.deployUptimeMs) ?? undefined,
-                env: typeof d?.env === 'string' ? d.env : undefined,
-                version: typeof d?.version === 'string' ? d.version : undefined,
-                connections: connections ?? 0,
-                uniqueUsers: toNumberOrNull(d?.uniqueUsers) ?? undefined,
-                onlineUsers: toNumberOrNull(d?.onlineUsers) ?? undefined,
-                status: h.status,
-                error: undefined,
-            }
-        }
-
-        let userList: any[] = []
-        let playersError: string | undefined = adminHeaders ? undefined : 'missing_admin_key'
-        if (adminHeaders) {
-            const users = await safeFetch(`${base}/v1/connected-users`, { headers: adminHeaders })
-            const payload: any = users.data
-            if (users.ok && payload) {
-                if (Array.isArray(payload.users)) userList = payload.users
-                else if (Array.isArray(payload.data)) userList = payload.data
-                else if (Array.isArray(payload)) userList = payload
-                else playersError = 'invalid_players_payload'
-            } else if (!users.ok) {
-                playersError = `players_fetch_failed:${users.status || 'unknown'}`
-            }
-        }
-
-        if (Array.isArray(userList) && userList.length > 0) {
-            const deduped = new Map<string, any>()
-            for (const user of userList) {
-                const uuid = typeof user?.uuid === 'string' ? user.uuid : null
-                if (!uuid) continue
-                const currentTs = toTimestamp(user?.lastSeen) ?? toTimestamp(user?.connectedAt)
-                const existing = deduped.get(uuid)
-                const existingTs = existing ? (toTimestamp(existing.lastSeen) ?? toTimestamp(existing.connectedAt)) : null
-                if (!existing || (currentTs != null && (existingTs == null || currentTs > existingTs))) {
-                    deduped.set(uuid, user)
-                }
-            }
-            userList = Array.from(deduped.values())
-        }
-
-        // se não conseguir listar players, usa o número de conexões do health como fallback de contagem
-        const count = Array.isArray(userList) && userList.length > 0
-            ? Number(userList.length)
-            : typeof health.onlineUsers === 'number'
-                ? Number(health.onlineUsers)
-                : typeof health.uniqueUsers === 'number'
-                    ? Number(health.uniqueUsers)
-                    : typeof health.connections === 'number'
-                        ? Number(health.connections)
-                        : 0
-
-        const timestamp = new Date().toISOString()
-
-        return {
-            health,
-            players: { count, list: userList, error: playersError },
-            latencyMs,
-            timestamp,
-            updatedAt: timestamp,
-        }
-    } catch (err: any) {
-        const timestamp = new Date().toISOString()
-        return {
-            health: { ok: false, error: err?.message || 'status_failed' },
-            players: { count: 0, list: [], error: 'unexpected_error' },
-            latencyMs: null,
-            timestamp,
-            updatedAt: timestamp,
-        }
-    }
-})
+    return {
+      health,
+      players: {
+        count,
+        list: users,
+        error: playersError,
+      },
+      latencyMs: healthResponse.latency,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error: any) {
+    return {
+      health: {
+        ok: false,
+        error: error?.message || "unexpected_error",
+      },
+      players: {
+        count: 0,
+        list: [],
+        error: "unexpected_error",
+      },
+      latencyMs: null,
+      timestamp: new Date().toISOString(),
+    };
+  }
+});

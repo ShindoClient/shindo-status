@@ -12,30 +12,29 @@
     "release": "nuxt build && vercel deploy --prebuilt --prod"
   },
   "dependencies": {
-    "@shindo/styles": "file:./vendor/shindo-styles",
-    "@vercel/analytics": "^1.5.0",
-    "@vercel/speed-insights": "^1.2.0",
+    "@vercel/analytics": "^1.6.1",
+    "@vercel/speed-insights": "^1.3.1",
     "@vueuse/core": "^11.3.0",
     "@vueuse/motion": "^2.2.6",
-    "autoprefixer": "^10.4.21",
-    "chart.js": "^4.5.0",
-    "h3": "^1.15.4",
+    "autoprefixer": "^10.5.0",
+    "chart.js": "^4.5.1",
+    "h3": "^1.15.11",
     "lucide-vue-next": "^0.542.0",
-    "nuxt": "^3.19.2",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17"
+    "nuxt": "^3.21.6",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
-    "@nuxt/schema": "^4.1.2",
-    "@types/bun": "^1.3.12",
-    "@vitejs/plugin-vue": "^6.0.1",
-    "@vitejs/plugin-vue-jsx": "^5.1.1",
-    "@vue/compiler-sfc": "^3.5.21",
-    "@vue/runtime-dom": "^3.5.21",
-    "nitropack": "^2.12.6",
-    "sass": "^1.77.8",
-    "typescript": "^5.9.2",
-    "vue-tsc": "^3.0.7"
+    "@nuxt/schema": "^4.4.6",
+    "@types/bun": "^1.3.14",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vitejs/plugin-vue-jsx": "^5.1.5",
+    "@vue/compiler-sfc": "^3.5.34",
+    "@vue/runtime-dom": "^3.5.34",
+    "nitropack": "^2.13.4",
+    "sass": "^1.100.0",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.1"
   },
   "trustedDependencies": [
     "@parcel/watcher"

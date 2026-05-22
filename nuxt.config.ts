@@ -26,9 +26,6 @@ export default defineNuxtConfig({
             versioningMetaUrl: process.env.NUXT_PUBLIC_VERSIONING_META_URL || 'https://cdn.shindoclient.com/data/meta/versioning.json'
         }
     },
-    nitro: {
-        preset: 'vercel',
-    },
     app: {
         head: {
             meta: [

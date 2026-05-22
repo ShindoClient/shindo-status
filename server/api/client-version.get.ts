@@ -1,11 +1,7 @@
 import { defineEventHandler } from 'h3'
-import { useRuntimeConfig } from '#imports'
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig(event)
-  const source =
-    (config.public as { versioningMetaUrl?: string } | undefined)?.versioningMetaUrl ||
-    'https://cdn.shindoclient.com/data/meta/versioning.json'
+  const source = 'https://cdn.shindoclient.com/data/meta/versioning.json'
 
   const fallback = {
     build: null as number | null,
