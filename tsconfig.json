@@ -1,11 +1,6 @@
 {
-  "extends": "./.nuxt/tsconfig.json",
+  "extends": "./.svelte-kit/tsconfig.json",
   "compilerOptions": {
-    "strict": true,
-    "types": ["vite/client", "@nuxt/types", "@types/node"],
-    "moduleResolution": "bundler",
-    "module": "ESNext",
-    "esModuleInterop": true,
-    "skipLibCheck": true
+    "strict": true
   }
 }
